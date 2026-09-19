@@ -1,0 +1,452 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================================================
+// MÓDULO A — Cadastros de suprimentos
+// (guarda dados mestres; o Módulo B só lê)
+// =========================================================================
+
+enum SupplierOrigin {
+  NACIONAL
+  IMPORTADO
+}
+
+enum SupplierStatus {
+  ATIVO
+  INATIVO
+  BLOQUEADO
+}
+
+enum QualificationStatus {
+  QUALIFICADO
+  EM_QUALIFICACAO
+  REPROVADO
+}
+
+enum Incoterm {
+  EXW
+  FCA
+  FOB
+  CFR
+  CIF
+  DAP
+  DDP
+}
+
+enum PaymentTerm {
+  ANTECIPADO
+  DIAS_30
+  DIAS_30_60
+  DIAS_30_60_90
+}
+
+model Supplier {
+  id              String              @id @default(cuid())
+  razaoSocial     String
+  nomeFantasia    String?
+  taxId           String              @unique // CNPJ ou tax ID / VAT
+  origin          SupplierOrigin
+  country         String
+  address         String?
+  status          SupplierStatus      @default(ATIVO)
+
+  // condições comerciais padrão
+  currency        String              @default("BRL")
+  paymentTerm     PaymentTerm         @default(DIAS_30)
+  incoterm        Incoterm?
+  avgLeadTimeDays Int?
+
+  qualificationStatus     QualificationStatus @default(EM_QUALIFICACAO)
+  qualificationLastReview DateTime?
+  qualificationNextReview DateTime?
+
+  contacts          SupplierContact[]
+  certifications    Certification[]
+  componentSuppliers ComponentSupplier[]
+  quotations        Quotation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([origin])
+}
+
+model SupplierContact {
+  id                 String   @id @default(cuid())
+  supplierId         String
+  supplier           Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  name               String
+  role               String?
+  email              String
+  phone              String?
+  receivesQuotation  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplierId])
+}
+
+model Certification {
+  id                 String    @id @default(cuid())
+  supplierId         String
+  supplier           Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  type               String    // ISO 13485, ISO 9001, licença Anvisa, RoHS, etc.
+  number             String
+  issuer             String
+  issueDate          DateTime
+  expiryDate         DateTime
+  fileUrl            String?
+
+  // histórico: ao renovar, o certificado antigo vira versão anterior
+  previousVersionId  String?        @unique
+  previousVersion    Certification? @relation("CertificationHistory", fields: [previousVersionId], references: [id])
+  supersededBy       Certification? @relation("CertificationHistory")
+  isCurrent          Boolean        @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([expiryDate])
+}
+
+model Component {
+  id             String   @id @default(cuid())
+  internalCode   String   @unique
+  description    String
+  category       String?
+  technicalSpec  String?
+  usageUnit      String   // como aparece no LMC: metro, unidade, grama...
+  ncm            String?
+  critical       Boolean  @default(false)
+  active         Boolean  @default(true)
+
+  componentSuppliers ComponentSupplier[]
+  bomItems           BomItem[]
+  purchasePlanItems  PurchasePlanItem[]
+  alerts             Alert[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([critical])
+}
+
+model ComponentSupplier {
+  id                     String   @id @default(cuid())
+  componentId            String
+  component              Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  supplierId             String
+  supplier               Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  supplierPartNumber     String   // código do fornecedor para o item
+  unitPrice              Decimal  @db.Decimal(14, 4)
+  currency               String   @default("BRL")
+
+  salesUnit              String   // unidade de venda (ex.: rolo, caixa)
+  conversionFactorToUsageUnit Decimal @db.Decimal(14, 6) // 1 unidade de venda = X unidades de uso
+
+  minLotSize             Decimal  @db.Decimal(14, 4) // lote mínimo, em unidade de venda
+  purchaseMultiple       Decimal  @db.Decimal(14, 4) @default(1) // múltiplo de compra, em unidade de venda
+
+  leadTimeDays           Int
+
+  priceDate              DateTime
+  priceValidUntil        DateTime
+
+  preferred              Boolean  @default(false)
+  notes                  String?
+
+  priceHistory           ComponentSupplierPriceHistory[]
+  purchasePlanItems      PurchasePlanItem[]
+  quotationItems         QuotationItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([componentId, supplierId])
+  @@index([supplierId])
+  @@index([componentId])
+}
+
+model ComponentSupplierPriceHistory {
+  id                  String            @id @default(cuid())
+  componentSupplierId String
+  componentSupplier   ComponentSupplier @relation(fields: [componentSupplierId], references: [id], onDelete: Cascade)
+  unitPrice           Decimal           @db.Decimal(14, 4)
+  currency            String
+  priceDate           DateTime
+  priceValidUntil     DateTime
+  replacedAt          DateTime          @default(now())
+
+  @@index([componentSupplierId])
+}
+
+// =========================================================================
+// LMC — Lista de Materiais/Componentes (pré-requisito para o Módulo B)
+// Cada revisão é imutável; o cenário aprovado referencia uma revisão fixa.
+// =========================================================================
+
+model Bom {
+  id          String   @id @default(cuid())
+  productCode String   @unique
+  description String
+  active      Boolean  @default(true)
+
+  revisions       BomRevision[]
+  productionLines ProductionLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BomRevision {
+  id             String   @id @default(cuid())
+  bomId          String
+  bom            Bom      @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  revisionNumber Int
+  effectiveDate  DateTime
+  isCurrent      Boolean  @default(true)
+
+  items          BomItem[]
+  productionLines ProductionLine[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([bomId, revisionNumber])
+}
+
+model BomItem {
+  id             String      @id @default(cuid())
+  bomRevisionId  String
+  bomRevision    BomRevision @relation(fields: [bomRevisionId], references: [id], onDelete: Cascade)
+  componentId    String
+  component      Component   @relation(fields: [componentId], references: [id])
+  qtyPerUnit     Decimal     @db.Decimal(14, 6)
+  lossPercent    Decimal     @db.Decimal(6, 4) @default(0) // 0.02 = 2%
+
+  @@index([bomRevisionId])
+  @@index([componentId])
+}
+
+// =========================================================================
+// MÓDULO B — Centro de planejamento e custos
+// (lê o Módulo A; nunca escreve nele)
+// =========================================================================
+
+enum ScenarioHorizon {
+  TRIMESTRAL
+  SEMESTRAL
+  ANUAL
+}
+
+enum ScenarioStatus {
+  RASCUNHO
+  APROVADO
+  COTADO
+  REVISADO
+}
+
+model Scenario {
+  id                 String          @id @default(cuid())
+  name               String
+  horizon            ScenarioHorizon
+  startDate          DateTime
+  exchangeRateUsdBrl Decimal         @db.Decimal(10, 4)
+  status             ScenarioStatus  @default(RASCUNHO)
+  approvedAt         DateTime?
+
+  periods            Period[]
+  productionLines    ProductionLine[]
+  purchasePlanItems  PurchasePlanItem[]
+  componentBalances  ComponentBalance[]
+  alerts             Alert[]
+  quotations         Quotation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Period {
+  id         String   @id @default(cuid())
+  scenarioId String
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  label      String   // ex.: "2027-T1"
+  startDate  DateTime
+  endDate    DateTime
+  sequence   Int
+
+  productionLines   ProductionLine[]
+  purchasePlanItems PurchasePlanItem[]
+  componentBalances ComponentBalance[]
+
+  @@unique([scenarioId, sequence])
+  @@index([scenarioId])
+}
+
+model ProductionLine {
+  id              String       @id @default(cuid())
+  scenarioId      String
+  scenario        Scenario     @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  bomId           String
+  bom             Bom          @relation(fields: [bomId], references: [id])
+  bomRevisionId   String
+  bomRevision     BomRevision  @relation(fields: [bomRevisionId], references: [id])
+  periodId        String
+  period          Period       @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  quantity        Decimal      @db.Decimal(14, 4)
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scenarioId])
+  @@index([periodId])
+  @@index([bomId])
+}
+
+// escolha de fornecedor por componente dentro do cenário (default: preferencial)
+model ScenarioSupplierChoice {
+  id          String   @id @default(cuid())
+  scenarioId  String
+  componentId String
+  supplierId  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scenarioId, componentId])
+}
+
+model PurchasePlanItem {
+  id                  String            @id @default(cuid())
+  scenarioId          String
+  scenario            Scenario          @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  periodId            String
+  period              Period            @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  componentId         String
+  component           Component         @relation(fields: [componentId], references: [id])
+  componentSupplierId String
+  componentSupplier   ComponentSupplier @relation(fields: [componentSupplierId], references: [id])
+
+  quantitySalesUnit   Decimal  @db.Decimal(14, 4) // já arredondado por lote mínimo/múltiplo
+  rawNeedUsageUnit    Decimal  @db.Decimal(14, 4) // necessidade antes de arredondar (para conferência)
+  carriedOverQty      Decimal  @db.Decimal(14, 4) @default(0) // saldo herdado do período anterior, abatido
+  surplusToNextPeriod Decimal  @db.Decimal(14, 4) @default(0) // sobra gerada por este arredondamento
+
+  unitCost            Decimal  @db.Decimal(14, 4)
+  currency             String
+  costBRL              Decimal  @db.Decimal(14, 2)
+
+  deadlineDate         DateTime // início do período − lead time
+  outOfHorizon          Boolean  @default(false)
+
+  plannedCost           Decimal? @db.Decimal(14, 2) // congelado na aprovação, para o fechamento B7
+  quotedUnitPrice        Decimal? @db.Decimal(14, 4)
+  quotedCost              Decimal? @db.Decimal(14, 2)
+
+  sourceLmcCodes          String[] // códigos de LMC de origem, para rastreabilidade
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scenarioId])
+  @@index([periodId])
+  @@index([componentId])
+  @@index([deadlineDate])
+}
+
+// saldo de cálculo (não é controle de estoque): sobra do lote mínimo que abate o período seguinte
+model ComponentBalance {
+  id           String   @id @default(cuid())
+  scenarioId   String
+  scenario     Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  componentId  String
+  periodId     String
+  period       Period   @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  balanceQty   Decimal  @db.Decimal(14, 4) // em unidade de venda
+
+  createdAt DateTime @default(now())
+
+  @@unique([scenarioId, componentId, periodId])
+}
+
+enum AlertType {
+  FORA_DO_HORIZONTE
+  SUGESTAO_CONSOLIDACAO
+  PRECO_DESATUALIZADO
+  FORNECEDOR_IRREGULAR
+}
+
+model Alert {
+  id          String    @id @default(cuid())
+  scenarioId  String
+  scenario    Scenario  @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  type        AlertType
+  componentId String?
+  component   Component? @relation(fields: [componentId], references: [id])
+  periodId    String?
+  message     String
+  details     Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([scenarioId])
+  @@index([type])
+}
+
+enum QuotationStatus {
+  ENVIADA
+  RESPONDIDA
+  VENCIDA
+}
+
+model Quotation {
+  id         String          @id @default(cuid())
+  scenarioId String
+  scenario   Scenario        @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier        @relation(fields: [supplierId], references: [id])
+  number     String          @unique
+  status     QuotationStatus @default(ENVIADA)
+  sentAt     DateTime?
+  dueAt      DateTime?
+
+  items      QuotationItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scenarioId])
+  @@index([supplierId])
+}
+
+model QuotationItem {
+  id                  String            @id @default(cuid())
+  quotationId         String
+  quotation           Quotation         @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  componentId         String
+  componentSupplierId String
+  componentSupplier   ComponentSupplier @relation(fields: [componentSupplierId], references: [id])
+  supplierPartNumber  String
+  description         String
+  quantitySalesUnit   Decimal           @db.Decimal(14, 4)
+  deadlineDate         DateTime
+
+  respondedPrice       Decimal? @db.Decimal(14, 4)
+  respondedLeadTimeDays Int?
+  respondedMinLotSize   Decimal? @db.Decimal(14, 4)
+  respondedAt           DateTime?
+
+  @@index([quotationId])
+  @@index([componentId])
+}
