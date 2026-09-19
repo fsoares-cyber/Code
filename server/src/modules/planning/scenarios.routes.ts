@@ -4,8 +4,10 @@ import { prisma } from "../../lib/prisma";
 import { asyncHandler } from "../../lib/asyncHandler";
 import { calculateScenario, generatePeriods } from "./calculationEngine";
 import { round2 } from "./rounding";
+import { scenarioQuotationsRouter } from "./quotations.routes";
 
 export const scenariosRouter = Router();
+scenariosRouter.use("/:id/quotations", scenarioQuotationsRouter);
 
 const scenarioSchema = z.object({
   name: z.string().min(1),
@@ -203,6 +205,13 @@ scenariosRouter.put(
 scenariosRouter.post(
   "/:id/calculate",
   asyncHandler(async (req, res) => {
+    const scenario = await prisma.scenario.findUnique({ where: { id: req.params.id } });
+    if (!scenario) return res.status(404).json({ error: "Cenário não encontrado" });
+    if (scenario.status !== "RASCUNHO") {
+      return res.status(400).json({
+        error: "Cenário já aprovado: o plano está congelado. Recalcular apagaria o plano e as cotações já geradas.",
+      });
+    }
     const result = await calculateScenario(req.params.id);
     res.json(result);
   }),

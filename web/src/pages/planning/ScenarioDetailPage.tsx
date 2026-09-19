@@ -7,8 +7,11 @@ import { ScenarioLinesTab } from "./ScenarioLinesTab";
 import { ScenarioPurchasePlanTab } from "./ScenarioPurchasePlanTab";
 import { ScenarioSummaryTab } from "./ScenarioSummaryTab";
 import { ScenarioAlertsTab } from "./ScenarioAlertsTab";
+import { ScenarioQuotationsTab } from "./ScenarioQuotationsTab";
+import { ScenarioComparisonTab } from "./ScenarioComparisonTab";
+import { ScenarioClosureTab } from "./ScenarioClosureTab";
 
-type Tab = "linhas" | "plano" | "resumo" | "alertas";
+type Tab = "linhas" | "plano" | "resumo" | "alertas" | "cotacao" | "comparativo" | "fechamento";
 
 const statusLabel: Record<Scenario["status"], string> = {
   RASCUNHO: "Rascunho",
@@ -66,9 +69,11 @@ export function ScenarioDetailPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn" onClick={calculate} disabled={calculating}>
-            {calculating ? "Calculando..." : "Calcular"}
-          </button>
+          {scenario.status === "RASCUNHO" && (
+            <button className="btn" onClick={calculate} disabled={calculating}>
+              {calculating ? "Calculando..." : "Calcular"}
+            </button>
+          )}
           {scenario.status === "RASCUNHO" && (
             <button className="btn btn-primary" onClick={approve}>
               Aprovar cenário
@@ -92,12 +97,24 @@ export function ScenarioDetailPage() {
         <button className={tab === "alertas" ? "active" : ""} onClick={() => setTab("alertas")}>
           Alertas
         </button>
+        <button className={tab === "cotacao" ? "active" : ""} onClick={() => setTab("cotacao")}>
+          Cotação
+        </button>
+        <button className={tab === "comparativo" ? "active" : ""} onClick={() => setTab("comparativo")}>
+          Comparativo
+        </button>
+        <button className={tab === "fechamento" ? "active" : ""} onClick={() => setTab("fechamento")}>
+          Fechamento
+        </button>
       </div>
 
       {tab === "linhas" && <ScenarioLinesTab scenario={scenario} readOnly={readOnly} />}
       {tab === "plano" && <ScenarioPurchasePlanTab scenario={scenario} />}
       {tab === "resumo" && <ScenarioSummaryTab scenario={scenario} />}
       {tab === "alertas" && <ScenarioAlertsTab scenario={scenario} />}
+      {tab === "cotacao" && <ScenarioQuotationsTab scenario={scenario} />}
+      {tab === "comparativo" && <ScenarioComparisonTab scenario={scenario} />}
+      {tab === "fechamento" && <ScenarioClosureTab scenario={scenario} />}
     </div>
   );
 }

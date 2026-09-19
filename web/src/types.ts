@@ -198,3 +198,76 @@ export interface ScenarioSummary {
   exposureUSD: number;
   exchangeRateUsdBrl: number;
 }
+
+export type QuotationStatus = "ENVIADA" | "RESPONDIDA" | "VENCIDA";
+
+export interface QuotationItem {
+  id: string;
+  quotationId: string;
+  componentId: string;
+  component?: Component;
+  componentSupplierId: string;
+  supplierPartNumber: string;
+  description: string;
+  quantitySalesUnit: string;
+  deadlineDate: string;
+  respondedPrice?: string | null;
+  respondedLeadTimeDays?: number | null;
+  respondedMinLotSize?: string | null;
+  respondedAt?: string | null;
+}
+
+export interface Quotation {
+  id: string;
+  scenarioId: string;
+  supplierId: string;
+  supplier: Supplier;
+  number: string;
+  status: QuotationStatus;
+  sentAt?: string | null;
+  dueAt?: string | null;
+  items: QuotationItem[];
+  itemsCount?: number;
+  respondedCount?: number;
+}
+
+export interface QuotationGenerateResult {
+  created: Quotation[];
+  skipped: { supplierId: string; razaoSocial: string; reason: string }[];
+}
+
+export interface ComparisonOption {
+  supplierId: string;
+  supplierName: string;
+  unitPrice: number;
+  currency: string;
+  leadTimeDays: number;
+  minLotSize: number;
+  quantity: number;
+  totalCostBRL: number;
+  isCheapestUnit: boolean;
+  isCheapestTotal: boolean;
+}
+
+export interface ComparisonEntry {
+  componentId: string;
+  componentCode: string;
+  description: string;
+  options: ComparisonOption[];
+}
+
+export interface ClosureRow {
+  componentId: string;
+  componentCode: string;
+  supplier: string;
+  planned: number;
+  quoted: number;
+  deviation: number;
+}
+
+export interface ClosureResult {
+  rows: ClosureRow[];
+  totalPlanned: number;
+  totalQuoted: number;
+  totalDeviation: number;
+}
