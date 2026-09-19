@@ -133,6 +133,7 @@ model Component {
   bomItems           BomItem[]
   purchasePlanItems  PurchasePlanItem[]
   alerts             Alert[]
+  quotationItems     QuotationItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -435,6 +436,7 @@ model QuotationItem {
   quotationId         String
   quotation           Quotation         @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   componentId         String
+  component           Component         @relation(fields: [componentId], references: [id])
   componentSupplierId String
   componentSupplier   ComponentSupplier @relation(fields: [componentSupplierId], references: [id])
   supplierPartNumber  String

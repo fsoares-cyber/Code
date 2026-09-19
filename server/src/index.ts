@@ -5,6 +5,7 @@ import { suppliersRouter } from "./modules/suppliers/suppliers.routes";
 import { componentsRouter } from "./modules/suppliers/components.routes";
 import { bomRouter } from "./modules/planning/bom.routes";
 import { scenariosRouter } from "./modules/planning/scenarios.routes";
+import { quotationsRouter } from "./modules/planning/quotations.routes";
 
 const app = express();
 app.use(cors());
@@ -21,6 +22,7 @@ app.use("/api/boms", bomRouter);
 
 // Módulo B — centro de planejamento e custos
 app.use("/api/scenarios", scenariosRouter);
+app.use("/api/quotations", quotationsRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof ZodError) {
