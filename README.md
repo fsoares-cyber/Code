@@ -42,7 +42,10 @@ mínimo, múltiplo de compra, lead time, histórico de preço).
 Cenários com taxa de câmbio fixa, linhas de fabricação (LMC + quantidade +
 período), motor de cálculo (conversão, lote mínimo/múltiplo, recuo por lead
 time, agregação por período, saldo carregado), os 4 alertas obrigatórios,
-plano de compras e resumo por período/LMC/fornecedor/total.
+plano de compras e resumo por período/LMC/fornecedor/total. Cotação por
+fornecedor (bloqueio automático de fornecedor irregular, retorno de preços,
+comparativo) e fechamento do ciclo (planejado × cotado). Plano de compras,
+resumo e comparativo são exportáveis em Excel e PDF.
 
 Ver `docs/DECISIONS.md` para as decisões tomadas sobre as pendências do
 briefing original.

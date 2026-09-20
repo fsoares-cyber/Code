@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../api";
 import type { ComparisonEntry, Scenario } from "../../types";
 import { formatCurrency, formatNumber } from "../../format";
+import { ExportButtons } from "../../components/ExportButtons";
 
 interface Props {
   scenario: Scenario;
@@ -32,11 +33,14 @@ export function ScenarioComparisonTab({ scenario }: Props) {
 
   return (
     <div>
-      <p className="small muted">
-        Mesmo componente cotado com vários fornecedores, lado a lado. O mais barato por unidade nem sempre é o mais
-        barato no total, depois do lote mínimo — por isso o custo total considera o lote mínimo/múltiplo de cada
-        fornecedor.
-      </p>
+      <div className="flex-between">
+        <p className="small muted mt-0">
+          Mesmo componente cotado com vários fornecedores, lado a lado. O mais barato por unidade nem sempre é o mais
+          barato no total, depois do lote mínimo — por isso o custo total considera o lote mínimo/múltiplo de cada
+          fornecedor.
+        </p>
+        <ExportButtons scenarioId={scenario.id} kind="comparison" />
+      </div>
       {entries.map((entry) => (
         <div className="card" key={entry.componentId}>
           <h4 className="mt-0">
