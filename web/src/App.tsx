@@ -6,8 +6,16 @@ import { ComponentDetailPage } from "./pages/components/ComponentDetailPage";
 import { BomListPage } from "./pages/planning/BomListPage";
 import { ScenariosListPage } from "./pages/planning/ScenariosListPage";
 import { ScenarioDetailPage } from "./pages/planning/ScenarioDetailPage";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { UsersPage } from "./pages/auth/UsersPage";
+import { useAuth } from "./auth/AuthContext";
 
 export default function App() {
+  const { user, loading, logout } = useAuth();
+
+  if (loading) return null;
+  if (!user) return <LoginPage />;
+
   return (
     <div className="app-shell">
       <nav className="app-nav">
@@ -26,6 +34,22 @@ export default function App() {
         <NavLink to="/cenarios" className={({ isActive }) => (isActive ? "active" : "")}>
           Cenários
         </NavLink>
+        {user.role === "ADMIN" && (
+          <>
+            <div className="group-label">Administração</div>
+            <NavLink to="/usuarios" className={({ isActive }) => (isActive ? "active" : "")}>
+              Usuários
+            </NavLink>
+          </>
+        )}
+        <div style={{ marginTop: 24, padding: "0 20px" }}>
+          <p className="small muted" style={{ margin: "0 0 6px" }}>
+            {user.name}
+          </p>
+          <button className="btn btn-sm" onClick={logout} style={{ width: "100%" }}>
+            Sair
+          </button>
+        </div>
       </nav>
       <main className="app-main">
         <Routes>
@@ -37,6 +61,7 @@ export default function App() {
           <Route path="/lmc" element={<BomListPage />} />
           <Route path="/cenarios" element={<ScenariosListPage />} />
           <Route path="/cenarios/:id" element={<ScenarioDetailPage />} />
+          {user.role === "ADMIN" && <Route path="/usuarios" element={<UsersPage />} />}
         </Routes>
       </main>
     </div>

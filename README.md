@@ -18,10 +18,11 @@ createdb supply_planning
 
 # backend
 cd server
-cp .env.example .env
+cp .env.example .env   # gere um JWT_SECRET próprio (ex.: openssl rand -hex 48)
 npm install
 npx prisma migrate dev
 npm run seed
+npm run test            # roda a suíte automatizada
 npm run dev
 
 # frontend (outro terminal)
@@ -29,6 +30,16 @@ cd web
 npm install
 npm run dev
 ```
+
+O seed cria um usuário administrador padrão para o primeiro login:
+`admin@exemplo.com` / `trocar123`. Novos usuários só podem ser criados por
+um administrador já autenticado (tela "Usuários" ou `POST /api/auth/users`).
+
+## Autenticação
+
+Toda a API (exceto `/health` e `POST /api/auth/login`) exige um token JWT
+(`Authorization: Bearer <token>`), emitido no login e válido por 12h. Os
+anexos de certificado em `/uploads` também exigem sessão.
 
 ## Módulos
 
