@@ -5,9 +5,12 @@ import { asyncHandler } from "../../lib/asyncHandler";
 import { calculateScenario, generatePeriods } from "./calculationEngine";
 import { round2 } from "./rounding";
 import { scenarioQuotationsRouter } from "./quotations.routes";
+import { computeScenarioSummary, getPurchasePlanItems } from "./queries";
+import { scenarioExportsRouter } from "./exports.routes";
 
 export const scenariosRouter = Router();
 scenariosRouter.use("/:id/quotations", scenarioQuotationsRouter);
+scenariosRouter.use("/:id/exports", scenarioExportsRouter);
 
 const scenarioSchema = z.object({
   name: z.string().min(1),
@@ -233,16 +236,7 @@ scenariosRouter.get(
 scenariosRouter.get(
   "/:id/purchase-plan",
   asyncHandler(async (req, res) => {
-    const items = await prisma.purchasePlanItem.findMany({
-      where: { scenarioId: req.params.id },
-      include: {
-        component: true,
-        componentSupplier: { include: { supplier: true } },
-        period: true,
-      },
-      orderBy: { deadlineDate: "asc" },
-    });
-    res.json(items);
+    res.json(await getPurchasePlanItems(req.params.id));
   }),
 );
 
@@ -250,61 +244,7 @@ scenariosRouter.get(
 scenariosRouter.get(
   "/:id/summary",
   asyncHandler(async (req, res) => {
-    const scenario = await prisma.scenario.findUniqueOrThrow({ where: { id: req.params.id } });
-    const items = await prisma.purchasePlanItem.findMany({
-      where: { scenarioId: req.params.id },
-      include: {
-        component: true,
-        componentSupplier: { include: { supplier: true } },
-        period: true,
-      },
-    });
-
-    const byPeriod = new Map<string, { periodId: string; label: string; sequence: number; totalBRL: number }>();
-    const byLmc = new Map<string, { lmcCode: string; totalBRL: number }>();
-    const bySupplier = new Map<string, { supplierId: string; name: string; totalBRL: number }>();
-    let totalBRL = 0;
-    let exposureUSD = 0;
-
-    for (const item of items) {
-      totalBRL = round2(totalBRL + Number(item.costBRL));
-      if (item.currency === "USD") {
-        exposureUSD = round2(exposureUSD + Number(item.quantitySalesUnit) * Number(item.unitCost));
-      }
-
-      const p = byPeriod.get(item.periodId) ?? {
-        periodId: item.periodId,
-        label: item.period.label,
-        sequence: item.period.sequence,
-        totalBRL: 0,
-      };
-      p.totalBRL = round2(p.totalBRL + Number(item.costBRL));
-      byPeriod.set(item.periodId, p);
-
-      for (const lmcCode of item.sourceLmcCodes) {
-        const l = byLmc.get(lmcCode) ?? { lmcCode, totalBRL: 0 };
-        l.totalBRL = round2(l.totalBRL + Number(item.costBRL));
-        byLmc.set(lmcCode, l);
-      }
-
-      const supplierId = item.componentSupplier.supplierId;
-      const s = bySupplier.get(supplierId) ?? {
-        supplierId,
-        name: item.componentSupplier.supplier.razaoSocial,
-        totalBRL: 0,
-      };
-      s.totalBRL = round2(s.totalBRL + Number(item.costBRL));
-      bySupplier.set(supplierId, s);
-    }
-
-    res.json({
-      byPeriod: [...byPeriod.values()].sort((a, b) => a.sequence - b.sequence),
-      byLmc: [...byLmc.values()].sort((a, b) => a.lmcCode.localeCompare(b.lmcCode)),
-      bySupplier: [...bySupplier.values()].sort((a, b) => b.totalBRL - a.totalBRL),
-      totalBRL,
-      exposureUSD,
-      exchangeRateUsdBrl: Number(scenario.exchangeRateUsdBrl),
-    });
+    res.json(await computeScenarioSummary(req.params.id));
   }),
 );
 

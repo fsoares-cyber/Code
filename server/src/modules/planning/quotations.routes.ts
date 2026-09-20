@@ -3,8 +3,8 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma";
 import { asyncHandler } from "../../lib/asyncHandler";
 import { isSupplierRegular } from "../suppliers/certificationStatus";
-import { getTotalUsageUnitNeedByComponent } from "./calculationEngine";
-import { round2, round6, roundToLotAndMultiple } from "./rounding";
+import { round2 } from "./rounding";
+import { computeQuotationComparison } from "./queries";
 
 const DEFAULT_QUOTATION_DUE_DAYS = 7;
 
@@ -143,75 +143,7 @@ scenarioQuotationsRouter.get(
 scenarioQuotationsRouter.get(
   "/comparison",
   asyncHandler(async (req, res) => {
-    const scenario = await prisma.scenario.findUniqueOrThrow({ where: { id: req.params.id } });
-    const respondedItems = await prisma.quotationItem.findMany({
-      where: { quotation: { scenarioId: req.params.id }, respondedPrice: { not: null } },
-      include: {
-        component: true,
-        componentSupplier: true,
-        quotation: { include: { supplier: true } },
-      },
-    });
-
-    // um preço por (componente, fornecedor) — descarta duplicatas entre períodos
-    const uniqueByKey = new Map<string, (typeof respondedItems)[number]>();
-    for (const item of respondedItems) {
-      uniqueByKey.set(`${item.componentId}:${item.componentSupplierId}`, item);
-    }
-
-    const totalNeedByComponent = await getTotalUsageUnitNeedByComponent(req.params.id);
-
-    const byComponent = new Map<
-      string,
-      { componentId: string; componentCode: string; description: string; options: any[] }
-    >();
-
-    for (const item of uniqueByKey.values()) {
-      const totalNeed = totalNeedByComponent.get(item.componentId) ?? 0;
-      const conversionFactor = Number(item.componentSupplier.conversionFactorToUsageUnit);
-      const neededSalesUnit = round6(totalNeed / conversionFactor);
-      const minLot = Number(item.respondedMinLotSize ?? item.componentSupplier.minLotSize);
-      const quantity = roundToLotAndMultiple(neededSalesUnit, minLot, Number(item.componentSupplier.purchaseMultiple));
-      const unitPrice = Number(item.respondedPrice);
-      const fx = item.componentSupplier.currency === "USD" ? Number(scenario.exchangeRateUsdBrl) : 1;
-      const totalCostBRL = round2(quantity * unitPrice * fx);
-      const leadTimeDays = item.respondedLeadTimeDays ?? item.componentSupplier.leadTimeDays;
-
-      const entry = byComponent.get(item.componentId) ?? {
-        componentId: item.componentId,
-        componentCode: item.component.internalCode,
-        description: item.component.description,
-        options: [],
-      };
-      entry.options.push({
-        supplierId: item.quotation.supplierId,
-        supplierName: item.quotation.supplier.razaoSocial,
-        unitPrice,
-        currency: item.componentSupplier.currency,
-        leadTimeDays,
-        minLotSize: minLot,
-        quantity,
-        totalCostBRL,
-      });
-      byComponent.set(item.componentId, entry);
-    }
-
-    const result = [...byComponent.values()].map((entry) => {
-      const cheapestUnit = Math.min(...entry.options.map((o) => o.unitPrice));
-      const cheapestTotal = Math.min(...entry.options.map((o) => o.totalCostBRL));
-      return {
-        ...entry,
-        options: entry.options
-          .map((o) => ({
-            ...o,
-            isCheapestUnit: o.unitPrice === cheapestUnit,
-            isCheapestTotal: o.totalCostBRL === cheapestTotal,
-          }))
-          .sort((a, b) => a.totalCostBRL - b.totalCostBRL),
-      };
-    });
-
-    res.json(result);
+    res.json(await computeQuotationComparison(req.params.id));
   }),
 );
 
