@@ -7,3 +7,5 @@ build/
 web/dist/
 server/dist/
 *.tsbuildinfo
+server/uploads/*
+!server/uploads/.gitkeep

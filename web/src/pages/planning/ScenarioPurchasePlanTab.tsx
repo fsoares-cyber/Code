@@ -4,6 +4,7 @@ import type { PurchasePlanItem, Scenario } from "../../types";
 import { formatCurrency, formatDate, formatNumber } from "../../format";
 import { SidePanel } from "../../components/SidePanel";
 import { AddSupplierToComponentForm } from "../../components/AddSupplierToComponentForm";
+import { ExportButtons } from "../../components/ExportButtons";
 
 interface Props {
   scenario: Scenario;
@@ -25,10 +26,13 @@ export function ScenarioPurchasePlanTab({ scenario }: Props) {
   return (
     <div>
       <div className="card">
-        <p className="small muted mt-0">
-          Uma linha por componente por período, ordenado por data limite. Itens com preço vencido ou fornecedor
-          irregular são destacados — use "Cadastro" para adicionar um fornecedor alternativo sem sair desta tela.
-        </p>
+        <div className="flex-between">
+          <p className="small muted mt-0">
+            Uma linha por componente por período, ordenado por data limite. Itens com preço vencido ou fornecedor
+            irregular são destacados — use "Cadastro" para adicionar um fornecedor alternativo sem sair desta tela.
+          </p>
+          <ExportButtons scenarioId={scenario.id} kind="purchase-plan" />
+        </div>
         <table>
           <thead>
             <tr>

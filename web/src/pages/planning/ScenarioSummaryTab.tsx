@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../api";
 import type { Scenario, ScenarioSummary } from "../../types";
 import { formatCurrency } from "../../format";
+import { ExportButtons } from "../../components/ExportButtons";
 
 interface Props {
   scenario: Scenario;
@@ -57,6 +58,9 @@ export function ScenarioSummaryTab({ scenario }: Props) {
 
   return (
     <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+        <ExportButtons scenarioId={scenario.id} kind="summary" />
+      </div>
       <div className="stat-row">
         <div className="stat-tile">
           <div className="label">Total geral</div>

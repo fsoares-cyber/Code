@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { api } from "../../api";
 import type { Supplier } from "../../types";
 import { CertificationStatusBadge, QualificationBadge, SupplierStatusBadge } from "../../components/Badges";
+import { FileUploadField } from "../../components/FileUploadField";
 import { formatDate } from "../../format";
 
 const emptyContact = { name: "", role: "", email: "", phone: "", receivesQuotation: false };
@@ -200,8 +201,8 @@ export function SupplierDetailPage() {
               <input required value={certForm.issuer} onChange={(e) => setCertForm({ ...certForm, issuer: e.target.value })} />
             </div>
             <div>
-              <label>Arquivo (URL)</label>
-              <input value={certForm.fileUrl} onChange={(e) => setCertForm({ ...certForm, fileUrl: e.target.value })} />
+              <label>Arquivo (PDF, PNG, JPEG ou WEBP)</label>
+              <FileUploadField value={certForm.fileUrl} onChange={(url) => setCertForm({ ...certForm, fileUrl: url })} />
             </div>
             <div>
               <label>Data de emissão *</label>
@@ -226,6 +227,7 @@ export function SupplierDetailPage() {
               <th>Emissor</th>
               <th>Validade</th>
               <th>Status</th>
+              <th>Anexo</th>
             </tr>
           </thead>
           <tbody>
@@ -240,11 +242,20 @@ export function SupplierDetailPage() {
                   <td>
                     <CertificationStatusBadge status={c.status} />
                   </td>
+                  <td>
+                    {c.fileUrl ? (
+                      <a href={c.fileUrl} target="_blank" rel="noreferrer">
+                        Ver
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
               ))}
             {supplier.certifications.filter((c) => c.isCurrent).length === 0 && (
               <tr>
-                <td colSpan={5} className="muted">
+                <td colSpan={6} className="muted">
                   Nenhum certificado cadastrado.
                 </td>
               </tr>

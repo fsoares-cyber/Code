@@ -8,6 +8,26 @@ datasource db {
 }
 
 // =========================================================================
+// Autenticação
+// =========================================================================
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =========================================================================
 // MÓDULO A — Cadastros de suprimentos
 // (guarda dados mestres; o Módulo B só lê)
 // =========================================================================
@@ -133,6 +153,7 @@ model Component {
   bomItems           BomItem[]
   purchasePlanItems  PurchasePlanItem[]
   alerts             Alert[]
+  quotationItems     QuotationItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -435,6 +456,7 @@ model QuotationItem {
   quotationId         String
   quotation           Quotation         @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   componentId         String
+  component           Component         @relation(fields: [componentId], references: [id])
   componentSupplierId String
   componentSupplier   ComponentSupplier @relation(fields: [componentSupplierId], references: [id])
   supplierPartNumber  String

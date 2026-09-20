@@ -37,11 +37,8 @@ interface ComponentNeed {
   sourceLmcCodes: Set<string>;
 }
 
-/**
- * Motor de cálculo do plano de compras (B3).
- * Idempotente: limpa e recalcula os itens do cenário a cada chamada.
- */
-export async function calculateScenario(scenarioId: string) {
+/** Necessidade em unidade de uso por período × componente, agregando linhas do mesmo período. */
+async function computeNeedsByPeriod(scenarioId: string) {
   const scenario = await prisma.scenario.findUniqueOrThrow({
     where: { id: scenarioId },
     include: { periods: { orderBy: { sequence: "asc" } } },
@@ -56,10 +53,6 @@ export async function calculateScenario(scenarioId: string) {
     },
   });
 
-  const supplierChoices = await prisma.scenarioSupplierChoice.findMany({ where: { scenarioId } });
-  const choiceByComponent = new Map(supplierChoices.map((c) => [c.componentId, c.supplierId]));
-
-  // necessidade por período × componente, agregando linhas do mesmo período
   const needsByPeriod = new Map<string, Map<string, ComponentNeed>>();
   for (const period of scenario.periods) {
     needsByPeriod.set(period.id, new Map());
@@ -85,6 +78,35 @@ export async function calculateScenario(scenarioId: string) {
       }
     }
   }
+
+  return { scenario, needsByPeriod };
+}
+
+/**
+ * Necessidade total em unidade de uso por componente, somada em todo o horizonte
+ * do cenário (ignora fornecedor e saldo carregado). Usado pelo comparativo de
+ * cotação, que precisa recalcular a quantidade para cada fornecedor alternativo.
+ */
+export async function getTotalUsageUnitNeedByComponent(scenarioId: string): Promise<Map<string, number>> {
+  const { needsByPeriod } = await computeNeedsByPeriod(scenarioId);
+  const totals = new Map<string, number>();
+  for (const periodMap of needsByPeriod.values()) {
+    for (const [componentId, need] of periodMap) {
+      totals.set(componentId, round6((totals.get(componentId) ?? 0) + need.needUsageUnit));
+    }
+  }
+  return totals;
+}
+
+/**
+ * Motor de cálculo do plano de compras (B3).
+ * Idempotente: limpa e recalcula os itens do cenário a cada chamada.
+ */
+export async function calculateScenario(scenarioId: string) {
+  const { scenario, needsByPeriod } = await computeNeedsByPeriod(scenarioId);
+
+  const supplierChoices = await prisma.scenarioSupplierChoice.findMany({ where: { scenarioId } });
+  const choiceByComponent = new Map(supplierChoices.map((c) => [c.componentId, c.supplierId]));
 
   const componentIds = new Set<string>();
   for (const periodMap of needsByPeriod.values()) {
