@@ -6,12 +6,18 @@ import { componentsRouter } from "./modules/suppliers/components.routes";
 import { bomRouter } from "./modules/planning/bom.routes";
 import { scenariosRouter } from "./modules/planning/scenarios.routes";
 import { quotationsRouter } from "./modules/planning/quotations.routes";
+import { uploadsRouter } from "./modules/uploads.routes";
+import { UPLOADS_DIR } from "./lib/uploads";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+// anexos de certificado (A2) — servidos como arquivo estático a partir do disco
+app.use("/uploads", express.static(UPLOADS_DIR));
+app.use("/api/uploads", uploadsRouter);
 
 // Módulo A — cadastros de suprimentos
 app.use("/api/suppliers", suppliersRouter);

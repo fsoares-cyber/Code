@@ -22,4 +22,14 @@ export const api = {
   put: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: "PUT", body: data ? JSON.stringify(data) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  upload: async <T>(path: string, file: File): Promise<T> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${BASE}${path}`, { method: "POST", body: formData });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(body.error ?? `Erro ${res.status}`);
+    }
+    return res.json();
+  },
 };
