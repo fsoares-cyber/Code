@@ -1,3 +1,4 @@
+import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import { ZodError } from "zod";
@@ -7,7 +8,9 @@ import { bomRouter } from "./modules/planning/bom.routes";
 import { scenariosRouter } from "./modules/planning/scenarios.routes";
 import { quotationsRouter } from "./modules/planning/quotations.routes";
 import { uploadsRouter } from "./modules/uploads.routes";
+import { authRouter } from "./modules/auth.routes";
 import { UPLOADS_DIR } from "./lib/uploads";
+import { requireAuth } from "./lib/auth";
 
 const app = express();
 app.use(cors());
@@ -15,8 +18,14 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
+// login é público; /me e /users exigem sessão (protegidos dentro do router)
+app.use("/api/auth", authRouter);
+
+// todo o resto — cadastros, planejamento e anexos — exige sessão válida
+app.use("/api", requireAuth);
+app.use("/uploads", requireAuth, express.static(UPLOADS_DIR));
+
 // anexos de certificado (A2) — servidos como arquivo estático a partir do disco
-app.use("/uploads", express.static(UPLOADS_DIR));
 app.use("/api/uploads", uploadsRouter);
 
 // Módulo A — cadastros de suprimentos

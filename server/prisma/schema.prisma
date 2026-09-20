@@ -8,6 +8,26 @@ datasource db {
 }
 
 // =========================================================================
+// Autenticação
+// =========================================================================
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =========================================================================
 // MÓDULO A — Cadastros de suprimentos
 // (guarda dados mestres; o Módulo B só lê)
 // =========================================================================

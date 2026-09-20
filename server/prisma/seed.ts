@@ -1,6 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+const DEFAULT_ADMIN_EMAIL = "admin@exemplo.com";
+const DEFAULT_ADMIN_PASSWORD = "trocar123";
 
 function daysFromNow(days: number): Date {
   const d = new Date();
@@ -266,8 +270,21 @@ async function main() {
     },
   });
 
+  console.log("Criando usuário administrador padrão...");
+  await prisma.user.upsert({
+    where: { email: DEFAULT_ADMIN_EMAIL },
+    update: {},
+    create: {
+      email: DEFAULT_ADMIN_EMAIL,
+      name: "Administrador",
+      passwordHash: await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 12),
+      role: "ADMIN",
+    },
+  });
+
   console.log("Seed concluído.");
   console.log(`Cenário: ${scenario.id}`);
+  console.log(`Login: ${DEFAULT_ADMIN_EMAIL} / ${DEFAULT_ADMIN_PASSWORD} (troque a senha depois de entrar)`);
 }
 
 main()
