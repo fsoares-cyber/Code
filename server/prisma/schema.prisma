@@ -28,6 +28,47 @@ model User {
 }
 
 // =========================================================================
+// Clientes
+// Cadastro próprio, independente do cadastro de Fornecedor do Módulo A —
+// "Fornecedor" aqui dentro é só um valor de classificação (tipo de cliente),
+// não uma referência à tabela Supplier.
+// =========================================================================
+
+enum CustomerType {
+  HOSPITAL // H — instituições hospitalares
+  MEDICO // M — profissionais da saúde individualmente
+  FORNECEDOR // F — empresas fornecedoras de produtos/serviços (classificação, não FK)
+  REPARO // R — empresas de reparo/manutenção
+  OUTROS // O — perfis não enquadrados nas categorias anteriores
+}
+
+enum PersonType {
+  FISICA // F — CPF
+  JURIDICA // J — CNPJ
+}
+
+model Customer {
+  id           String       @id @default(cuid())
+  customerType CustomerType
+  personType   PersonType
+
+  document String @unique // CPF ou CNPJ, só dígitos (conforme personType)
+  crm      String? // obrigatório quando customerType=MEDICO e personType=FISICA
+
+  name        String // conforme documento oficial (CNPJ/CPF)
+  nickname    String? // apelido / nome fantasia
+  invoiceName String? // nome para nota fiscal
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerType])
+  @@index([personType])
+}
+
+// =========================================================================
 // MÓDULO A — Cadastros de suprimentos
 // (guarda dados mestres; o Módulo B só lê)
 // =========================================================================

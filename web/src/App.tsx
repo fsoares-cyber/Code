@@ -8,6 +8,8 @@ import { ScenariosListPage } from "./pages/planning/ScenariosListPage";
 import { ScenarioDetailPage } from "./pages/planning/ScenarioDetailPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { UsersPage } from "./pages/auth/UsersPage";
+import { CustomersListPage } from "./pages/customers/CustomersListPage";
+import { CustomerDetailPage } from "./pages/customers/CustomerDetailPage";
 import { useAuth } from "./auth/AuthContext";
 
 export default function App() {
@@ -20,6 +22,10 @@ export default function App() {
     <div className="app-shell">
       <nav className="app-nav">
         <h1>Suprimentos</h1>
+        <div className="group-label">Clientes</div>
+        <NavLink to="/clientes" className={({ isActive }) => (isActive ? "active" : "")}>
+          Clientes
+        </NavLink>
         <div className="group-label">Módulo A — Cadastros</div>
         <NavLink to="/fornecedores" className={({ isActive }) => (isActive ? "active" : "")}>
           Fornecedores
@@ -54,6 +60,8 @@ export default function App() {
       <main className="app-main">
         <Routes>
           <Route path="/" element={<ScenariosListPage />} />
+          <Route path="/clientes" element={<CustomersListPage />} />
+          <Route path="/clientes/:id" element={<CustomerDetailPage />} />
           <Route path="/fornecedores" element={<SuppliersListPage />} />
           <Route path="/fornecedores/:id" element={<SupplierDetailPage />} />
           <Route path="/componentes" element={<ComponentsListPage />} />
