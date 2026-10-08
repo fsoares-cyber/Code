@@ -1,3 +1,20 @@
+export type CustomerType = "HOSPITAL" | "MEDICO" | "FORNECEDOR" | "REPARO" | "OUTROS";
+export type PersonType = "FISICA" | "JURIDICA";
+
+export interface Customer {
+  id: string;
+  customerType: CustomerType;
+  personType: PersonType;
+  document: string;
+  crm?: string | null;
+  name: string;
+  nickname?: string | null;
+  invoiceName?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type SupplierOrigin = "NACIONAL" | "IMPORTADO";
 export type SupplierStatus = "ATIVO" | "INATIVO" | "BLOQUEADO";
 export type QualificationStatus = "QUALIFICADO" | "EM_QUALIFICACAO" | "REPROVADO";

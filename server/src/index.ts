@@ -9,6 +9,7 @@ import { scenariosRouter } from "./modules/planning/scenarios.routes";
 import { quotationsRouter } from "./modules/planning/quotations.routes";
 import { uploadsRouter } from "./modules/uploads.routes";
 import { authRouter } from "./modules/auth.routes";
+import { customersRouter } from "./modules/customers/customers.routes";
 import { UPLOADS_DIR } from "./lib/uploads";
 import { requireAuth } from "./lib/auth";
 
@@ -28,6 +29,9 @@ app.use("/uploads", requireAuth, express.static(UPLOADS_DIR));
 // anexos de certificado (A2) — servidos como arquivo estático a partir do disco
 app.use("/api/uploads", uploadsRouter);
 
+// Clientes — cadastro independente do Fornecedor
+app.use("/api/customers", customersRouter);
+
 // Módulo A — cadastros de suprimentos
 app.use("/api/suppliers", suppliersRouter);
 app.use("/api/components", componentsRouter);
@@ -41,7 +45,7 @@ app.use("/api/quotations", quotationsRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof ZodError) {
-    return res.status(400).json({ error: "Dados inválidos", issues: err.issues });
+    return res.status(400).json({ error: err.issues[0]?.message ?? "Dados inválidos", issues: err.issues });
   }
   console.error(err);
   const message = err instanceof Error ? err.message : "Erro interno";
